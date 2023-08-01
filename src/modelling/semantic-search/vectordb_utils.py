@@ -1,5 +1,5 @@
 import typing as tp
-import tensorflow_hub as hub
+import tensorflow as tf
 import faiss
 import numpy as np
 from faiss.contrib.ondisk import merge_ondisk
@@ -58,7 +58,8 @@ def load_populated_index(populated_index_path: pathlib.Path, nprobe: int = 16):
     return populated_index
 
 
-def run_query(populated_index, model, query: str, top_k: int = 8) -> np.ndarray:
+def run_query(
+        populated_index, model, query: str, top_k: int = 8) -> np.ndarray:
     encoded_query = model([query])
     _, idx = populated_index.search(encoded_query)
 
