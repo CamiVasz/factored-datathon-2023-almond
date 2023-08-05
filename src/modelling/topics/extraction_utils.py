@@ -3,11 +3,12 @@ import numpy as np
 import scipy.sparse as sp
 
 
-def group_reviews_per_topic(reviews: pd.DataFrame) -> pd.DataFrame:
+def group_reviews_per_topic(
+    reviews: pd.DataFrame, review_text_key: str) -> pd.DataFrame:
     return (
         reviews
         .groupby('topic', as_index=False)
-        .agg({'text': ' '.join})
+        .agg({review_text_key: ' '.join})
     )
 
 

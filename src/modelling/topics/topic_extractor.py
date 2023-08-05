@@ -31,6 +31,7 @@ class TopicExtractionConfig:
     number_of_grams_per_topic: int = 10
     number_of_representative_documents: int = 3
     reduce_topics: tp.Union[int, None] = None
+    review_text_key: str = "reviewText"
 
     def get_vectorizer_model(self):
         return self.vectorizer_model
@@ -44,7 +45,8 @@ class TopicExtractor:
         self.config = config
         self.vectorizer_model = self.config.get_vectorizer_model()
         self.ctfidf_model = self.config.get_extraction_model()
-
+        
+        self.review_text_key = self.config.review_text_key
         self.c_tf_idf = None
 
     def __call__(
@@ -67,7 +69,8 @@ class TopicExtractor:
         }
 
     def extract_topics(self, reviews: pd.DataFrame):
-        reviews_per_topic = extraction_utils.group_reviews_per_topic(reviews)
+        reviews_per_topic = extraction_utils.group_reviews_per_topic(
+            reviews, self.review_text_key)
         self.c_tf_idf, vocab = self.compute_c_tf_idf(reviews_per_topic)
         self.words_per_topic = self.extract_words_per_topic(reviews, vocab)
 
@@ -85,14 +88,15 @@ class TopicExtractor:
     def compute_c_tf_idf(
             self,
             reviews_per_topic: pd.DataFrame
-            ) -> tuple[sp.csr_matrix, np.ndarray[str]]:
+            ) -> tuple[sp.csr_matrix, np.ndarray]:
         """Compute C-TF-IDF per topic
 
         Args:
             reviews_per_topic: A per topic dataframe, it must be the output of
                 `extraction_utils.group_reviews_per_topic`
         """
-        clean_reviews = self._prepare_c_tf_idf_text(reviews_per_topic.text)
+        clean_reviews = self._prepare_c_tf_idf_text(
+          reviews_per_topic[self.review_text_key])
 
         # update in place
         self.vectorizer_model.fit(clean_reviews)
@@ -104,7 +108,7 @@ class TopicExtractor:
         return c_tf_idf, vocab
 
     def extract_words_per_topic(
-            self, reviews: pd.DataFrame, vocab: np.ndarray[str]):
+            self, reviews: pd.DataFrame, vocab: np.ndarray):
         labels = reviews.topic.unique().astype(int)
 
         indices = extraction_utils.top_n_idx_sparse(
@@ -137,7 +141,7 @@ class TopicExtractor:
         sample_reviews_per_topic = (
             reviews.groupby('topic')
                    .sample(n=500, replace=True)
-                   .drop_duplicates(subset=['text'])
+                   .drop_duplicates(subset=[self.review_text_key])
         )
 
         repr_docs = []
@@ -150,7 +154,8 @@ class TopicExtractor:
             # Slice data
             selection = sample_reviews_per_topic.loc[
                 sample_reviews_per_topic.topic == topic, :]
-            selected_docs = selection.text.values
+            selected_docs = selection[self.review_text_key].values
+            selected_full_docs = selection['reviewText'].values
             selected_docs_ids = selection.index.tolist()
 
             # Calculate similarity
@@ -165,7 +170,7 @@ class TopicExtractor:
             # extract top n most representative documents
             indices = np.argpartition(
                 sim_matrix.reshape(1, -1)[0], -nr_docs)[-nr_docs:]
-            docs = [selected_docs[index] for index in indices]
+            docs = [selected_full_docs[index] for index in indices]
 
             doc_ids = [
                 selected_docs_ids[index] 
