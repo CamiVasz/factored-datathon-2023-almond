@@ -1,0 +1,2 @@
+merged_index.ivfdata filter=lfs diff=lfs merge=lfs -text
+populated.index filter=lfs diff=lfs merge=lfs -text
