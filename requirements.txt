@@ -1,0 +1,11 @@
+streamlit
+pandas
+hdbscan
+faiss-cpu
+scikit-learn
+tensorflow_hub
+tensorflow
+numpy
+scipy
+sentence_transformers
+google-generativeai
